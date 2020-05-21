@@ -12,33 +12,29 @@ if N_SLAVES <=0: N_SLAVES=1
 def master(id, x, ibm_cos):
     write_permission_list = []
 
-    #cos.put_object(bucket_name,'buit','buit')
-    ibm_cos.put_object(Bucket=bucket_name, Key='ninguExecutant')
     done=0
+    ibm_cos.put_object(Bucket=bucket_name,Key='result.txt')
+    time.sleep(1)
+    ultimaActualitzacio=ibm_cos.get_object(Bucket=bucket_name,Key='result.txt')['LastModified']
+    first=True
     while done<N_SLAVES:
-        try:
-            #si ningú està modificant, existeix el fitxer 
-            ibm_cos.get_object(Bucket=bucket_name,Key='ninguExecutant')
-            try:
-                #fitxer=cos.get_object(bucket_name,f'p_write_{i}')
-           
-                list_files=ibm_cos.list_objects(Bucket=bucket_name, Marker='p_write_')['Contents']
-                slaves_bucket=[]
-                for fitxer in list_files:
-                    slaves_bucket.append({"NomFitxer":fitxer['Key'], "DataCreacio":fitxer['LastModified']})
-                #ordenem per la data de modificacio
-                slaves_bucket=sorted(slaves_bucket,key=lambda k:k['DataCreacio'])
-                #fiquem el write_{id}, per fer aixo borrem el p_ del nom
-                ibm_cos.put_object(Bucket=bucket_name,Key=slaves_bucket[0]['NomFitxer'][2:])
-                ibm_cos.delete_object(Bucket=bucket_name,Key='ninguExecutant')
-                ibm_cos.delete_object(Bucket=bucket_name,Key=slaves_bucket[0]['NomFitxer'])
-                write_permission_list.append(id)
-                done+=1
-            except Exception:
-                pass
-        except Exception:
-            pass
-
+        ara=ibm_cos.get_object(Bucket=bucket_name,Key='result.txt')['LastModified']
+        if(ultimaActualitzacio<ara or first):
+            first=False
+            list_files=ibm_cos.list_objects(Bucket=bucket_name, Marker='p_write_')['Contents']
+            slaves_bucket=[]
+            for fitxer in list_files:
+                slaves_bucket.append({"NomFitxer":fitxer['Key'], "DataCreacio":fitxer['LastModified']})
+            #ordenem per la data de modificacio
+            slaves_bucket=sorted(slaves_bucket,key=lambda k:k['DataCreacio'])
+            #fiquem el write_{id}, per fer aixo borrem el p_ del nom
+            ibm_cos.put_object(Bucket=bucket_name,Key=slaves_bucket[0]['NomFitxer'][2:])
+            ibm_cos.delete_object(Bucket=bucket_name,Key='ninguExecutant')
+            ibm_cos.delete_object(Bucket=bucket_name,Key=slaves_bucket[0]['NomFitxer'])
+            write_permission_list.append(id)
+            done+=1
+      
+        time.sleep(2)
     return write_permission_list
  # 1. monitor COS bucket each X seconds
  # 2. List all "p_write_{id}" files
@@ -57,21 +53,19 @@ def slave(id, x, ibm_cos):
     ibm_cos.put_object(Bucket=bucket_name,Key=f'p_write_{id}')
     while True:
         try:
-            ibm_cos.put_object(Bucket=bucket_name,Key=f'{id}')
             ibm_cos.get_object(Bucket=bucket_name, Key=f'write_{id}')
-            ibm_cos.put_object(Bucket=bucket_name,Key=f'YEEEEEEEEEEAH{id}')
-            ibm_cos.delete_object(bucket_name, Key=f'write_{id}')
+            #ibm_cos.put_object(Bucket=bucket_name,Key=f'{id}')
+            #ibm_cos.delete_object(bucket_name, Key=f'write_{id}')
             try:
                 content=pickle.loads(ibm_cos.get_object(Bucket=bucket_name, Key='result.txt')['Body'].read())
                 content.append(f'{id}')
             except Exception:
                 content=f'{id}'
             ibm_cos.put_object(Bucket=bucket_name, Key='result.txt', Body= pickle.dumps(content))
-            ibm_cos.put_object(Bucket=bucket_name, Key=f'yeah{id}.txt', Body= 'donee')
-            ibm_cos.put_object(Bucket=bucket_name, Key='ninguExecutant')
-            break
+            return
         except Exception:
             pass
+        time.sleep(5)
 
     
     #cos.put_object(bucket_name,'buit','No hi ha ningú al result.txt')
