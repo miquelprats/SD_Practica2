@@ -25,7 +25,7 @@ def master(id, x, ibm_cos):
             while aux==done:
                 if first:
                     first=False
-                list_files=ibm_cos.list_objects(Bucket=bucket_name, Marker='p_')['Contents']
+                list_files=ibm_cos.list_objects(Bucket=bucket_name)['Contents']
                 slaves_bucket=[]
                 ultimaActualitzacio=ara
                 for fitxer in list_files:
@@ -74,24 +74,38 @@ def slave(id, x, ibm_cos):
 
 if __name__ == '__main__':
     pw = pywren.ibm_cf_executor()
+    start_time = time.time()
     pw.call_async(master, 0)
     pw.map(slave, range(N_SLAVES))
     write_permission_list = pw.get_result()
-    
-    print(f'The list from the master: {write_permission_list[0]}')
+    elapsed_time = time.time() - start_time
 
     ibm_cos = pw.internal_storage.get_client()
-    result = ibm_cos.get_object(Bucket=bucket_name, Key='result.txt')['Body'].read()
-    print(f'The result.txt file: {pickle.loads(result)}')
-    list_files=ibm_cos.list_objects(Bucket=bucket_name)['Contents']
 
-    if (write_permission_list[0]==pickle.loads(result)):
-        print("Equal lists: True")
-    else:
-        print("Equal lists: False")
+    try:
+        print(f'The list from the master: {write_permission_list[0]}')
+        result = ibm_cos.get_object(Bucket=bucket_name, Key='result.txt')['Body'].read()
+        list_result = pickle.loads(result)
+        print(f'The result.txt file: {list_result}')
 
-    #Deleting all remaining files (including some that should be deleted previously)
-    created_files=['p_write_','write_', 'result.txt']   
+        if (write_permission_list[0] == list_result):
+            print("Equal lists: True")
+        else:
+            print("Equal lists: False")
+    except Exception:
+        print('Error in the result.txt file or the return of master')
+
+
+
+    list_files = ibm_cos.list_objects(Bucket=bucket_name)['Contents']
+    # Deleting all remaining files (including some that should be deleted previously)
+    created_files = ['pwrite', 'write_', 'result.txt']
     for elem in list_files:
-        if(elem['Key'] in created_files):
+        eliminat = elem['Key']
+        if (elem['Key'] in s for s in created_files):
+            eliminat = elem['Key']
             ibm_cos.delete_object(Bucket=bucket_name, Key=elem['Key'])
+
+
+
+    print(f"Temps d'execució en segons: {elapsed_time} s")
