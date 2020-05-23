@@ -1,7 +1,7 @@
 import pywren_ibm_cloud as pywren
 import time,datetime, pickle, pytz
 
-bucket_name='practica-sd-mp'
+bucket_name='practica-sd-sl'
 
 N_SLAVES = 10
 if N_SLAVES <=0: 
@@ -68,7 +68,7 @@ def slave(id, x, ibm_cos):
             ibm_cos.put_object(Bucket=bucket_name, Key='result.txt', Body= pickle.dumps(content))         
         except Exception:
             pass
-        time.sleep(4)
+        time.sleep(2)
 
 
 
@@ -78,13 +78,18 @@ if __name__ == '__main__':
     pw.map(slave, range(N_SLAVES))
     write_permission_list = pw.get_result()
     
-    print(f'The list from the master: {write_permission_list}')
+    print(f'The list from the master: {write_permission_list[0]}')
 
     ibm_cos = pw.internal_storage.get_client()
     result = ibm_cos.get_object(Bucket=bucket_name, Key='result.txt')['Body'].read()
     print(f'The result.txt file: {pickle.loads(result)}')
-    ibm_cos.put_object(Bucket=bucket_name, Key='p_write_1000')
     list_files=ibm_cos.list_objects(Bucket=bucket_name)['Contents']
+
+    if (write_permission_list[0]==pickle.loads(result)):
+        print("Equal lists: True")
+    else:
+        print("Equal lists: False")
+
     #Deleting all remaining files (including some that should be deleted previously)
     created_files=['p_write_','write_', 'result.txt']   
     for elem in list_files:
