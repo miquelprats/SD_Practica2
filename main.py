@@ -1,7 +1,8 @@
 import pywren_ibm_cloud as pywren
 import time,datetime, pickle, pytz
 
-bucket_name='practica-sd-sl'
+bucket_name='practica-sd-mp'
+result_file='result.txt'
 
 N_SLAVES = 10
 if N_SLAVES <=0: 
@@ -13,12 +14,12 @@ def master(id, x, ibm_cos):
     write_permission_list = []
     done=0
     ibm_cos.put_object(Bucket=bucket_name,Key='result.txt')
-    time.sleep(4)
+    time.sleep(2)
 
     first=True
     ultimaActualitzacio=pytz.utc.localize(datetime.datetime.now())
     while done<N_SLAVES:
-        ara=ibm_cos.get_object(Bucket=bucket_name,Key='result.txt')['LastModified']
+        ara=ibm_cos.get_object(Bucket=bucket_name,Key=result_file)['LastModified']
         if(ultimaActualitzacio<ara or first):
             aux=done
             #Since it's in, it can't get out without giving permission to one slave
@@ -65,11 +66,12 @@ def slave(id, x, ibm_cos):
                 content=[]
                 content.append(f'{id}')
             
-            ibm_cos.put_object(Bucket=bucket_name, Key='result.txt', Body= pickle.dumps(content))         
+            ibm_cos.put_object(Bucket=bucket_name, Key=result_file, Body= pickle.dumps(content))         
+            return
         except Exception:
             pass
         time.sleep(2)
-
+    return
 
 
 if __name__ == '__main__':
@@ -84,7 +86,7 @@ if __name__ == '__main__':
 
     try:
         print(f'The list from the master: {write_permission_list[0]}')
-        result = ibm_cos.get_object(Bucket=bucket_name, Key='result.txt')['Body'].read()
+        result = ibm_cos.get_object(Bucket=bucket_name, Key=result_file)['Body'].read()
         list_result = pickle.loads(result)
         print(f'The result.txt file: {list_result}')
 
@@ -99,7 +101,7 @@ if __name__ == '__main__':
 
     list_files = ibm_cos.list_objects(Bucket=bucket_name)['Contents']
     # Deleting all remaining files (including some that should be deleted previously)
-    created_files = ['pwrite', 'write_', 'result.txt']
+    created_files = ['pwrite', 'write_', result_file]
     for elem in list_files:
         eliminat = elem['Key']
         if (elem['Key'] in s for s in created_files):
