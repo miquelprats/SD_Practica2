@@ -1,7 +1,7 @@
 import pywren_ibm_cloud as pywren
 import time,datetime, pickle, pytz
 
-bucket_name='practica-sd-mp'
+bucket_name='practica-sd-sl'
 result_file='result.txt'
 
 N_SLAVES = 10
@@ -13,7 +13,7 @@ elif N_SLAVES>100:
 def master(id, x, ibm_cos):
     write_permission_list = []
     done=0
-    ibm_cos.put_object(Bucket=bucket_name,Key='result.txt')
+    ibm_cos.put_object(Bucket=bucket_name,Key=result_file)
     time.sleep(2)
 
     first=True
@@ -59,7 +59,7 @@ def slave(id, x, ibm_cos):
             fet=False
             #try for checking if it's empty
             try:
-                result=ibm_cos.get_object(Bucket=bucket_name, Key='result.txt')['Body'].read()
+                result=ibm_cos.get_object(Bucket=bucket_name, Key=result_file)['Body'].read()
                 content=pickle.loads(result)
                 content.append(f'{id}')
             except Exception:
@@ -88,14 +88,14 @@ if __name__ == '__main__':
         print(f'The list from the master: {write_permission_list[0]}')
         result = ibm_cos.get_object(Bucket=bucket_name, Key=result_file)['Body'].read()
         list_result = pickle.loads(result)
-        print(f'The result.txt file: {list_result}')
+        print(f'The {result_file} file: {list_result}')
 
         if (write_permission_list[0] == list_result):
             print("Equal lists: True")
         else:
             print("Equal lists: False")
     except Exception:
-        print('Error in the result.txt file or the return of master')
+        print(f'Error in the {result_file} file or the return of master')
 
 
 
